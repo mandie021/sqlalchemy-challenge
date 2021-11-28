@@ -10,7 +10,7 @@ from flask import Flask, jsonify
 
 #Routes
 
-engine = create_engine("sqlite://../Resources/hawaii.sqlite")
+engine = create_engine("sqlite:///Resources/hawaii.sqlite")
 
 # reflect an existing database into a new model
 Base = automap_base()
@@ -31,8 +31,9 @@ def welcome():
     return (
         f"Available Routes:<br/>"
         f"/api/v1.0/precipitation<br/>"
-        f"/api/v1.0/stations"
-        f"/api/v1.0/tobs"
+        f"/api/v1.0/stations<br/>"
+        f"/api/v1.0/tobs<br/>"
+        f"/api/v1.0/yyyy-mm-dd</br>"
         f"/api/v1.0/yyyy-mm-dd/yyyy-mm-dd/<br/>"
     )
 
@@ -41,18 +42,16 @@ def welcome():
 @app.route("/api/v1.0/precipitation")
 def percipitation():
     """Convert the query results to a dictionary using date as the key and prcp as the value"""
+    prevyear = dt.date(2017, 8, 23) - dt.timedelta(days=365)
     session = Session(engine)
     percipitation_query = session.query(Measurement.date, Measurement.prcp).\
-        order_by(Measurement.date).all()
+        order_by(Measurement.date >= prevyear).all()
     session.close()
 
     #create dictionary
-    prcpbydate = []
-    for date in percipitation_query:
-        precipitation_dict = {percipitation_query.date: percipitation_query.prcp}
-        precipitation_dict["prcp"] = Measurement.prcp
-        prcpbydate.append(precipitation_dict)
-    return jsonify(prcpbydate)
+    
+    precipitation = {date: prcp for date, prcp in percipitation_query}
+    return jsonify(precipitation)
 
 #station route
 @app.route("/api/v1.0/stations")
@@ -93,11 +92,11 @@ def tobs():
 
     ##create dictionary and change jsonify
     temp_list = []
-    for obs in active_station:
-        station_dict = {active_station.date: active_station.tobs, "Station": active_station.station}
-        station_dict["Date"] = Measurement.date
-        station_dict["Station"] = Measurement.station
-        station_dict["Temp"] = int(Measurement.tobs)
+    for station, date, tobs in active_station:
+        station_dict = {}
+        station_dict["Station"] = station
+        station_dict["Date"] = date
+        station_dict["Temp"] = tobs
         temp_list.append(station_dict)
 
     return jsonify(temp_list)
@@ -105,22 +104,19 @@ def tobs():
 
 #When given the start only, calculate TMIN, TAVG, and TMAX for all dates greater than and equal to the start date.
 #Return a JSON list of the minimum temperature, the average temperature, and the max temperature for a given start or start-end range.
-@app.route("/api/v1.0/<start>")
-def givendate(date):
+@app.route("/api/v1.0/<start_date>")
+def start_date(start_date):
     session = Session(engine)
-    givendate_query = session.query(Measurement.date, func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).\
-        filter(Measurement.date >= date).\
-        group_by(Measurement.date).all()
+    givendate_query = session.query(func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).filter(Measurement.date >= start_date).all()
     session.close()
 
     ##create dictionary and change jsonify
     dates = []                       
-    for result in givendate_query:
+    for min, avg, max in givendate_query:
         date_dict = {}
-        date_dict["Date"] = givendate_query.date
-        date_dict["Low Temp"] = givendate_query[1]
-        date_dict["Avg Temp"] = givendate_query[2]
-        date_dict["High Temp"] = givendate_query[3]
+        date_dict["Low Temp"] = min
+        date_dict["Avg Temp"] = avg
+        date_dict["High Temp"] = max
         dates.append(date_dict)
     return jsonify(dates)
 
@@ -130,25 +126,23 @@ def givendate(date):
 def dates(start_date, end_date):
     session = Session(engine)
     """Return the avg, max, min, temp over a specific time period"""
-    dates_query = session.query(Measurement.date, func.avg(Measurement.tobs), func.max(Measurement.tobs), func.min(Measurement.tobs)).\
-        filter(Measurement.date >= start_date, Measurement.date <= end_date).\
-        group_by(Measurement.date).all()
+    dates_query = session.query(func.avg(Measurement.tobs), func.max(Measurement.tobs), func.min(Measurement.tobs)).filter(Measurement.date >= start_date, Measurement.date <= end_date).all()
     session.close()
 
 
     ##create dictionary and change jsonify
     date = []                       
-    for result in dates_query:
+    for min, avg, max in dates_query:
         dates_dict = {}
-        dates_dict["Date"] = dates_query[0]
-        dates_dict["Low Temp"] = dates_query[1]
-        dates_dict["Avg Temp"] = dates_query[2]
-        dates_dict["High Temp"] = dates_query[3]
+        dates_dict["Low Temp"] = min
+        dates_dict["Avg Temp"] = avg
+        dates_dict["High Temp"] = max
         date.append(dates_dict)
-    return jsonify(dates)
+    return jsonify(date)
 
 
 if __name__ == '__main__':
     app.run(debug=True)
+    app.run()
 
-    ##http://localhost:52330/sqlalchemy-challenge/app.py
+   
