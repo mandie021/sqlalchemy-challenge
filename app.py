@@ -128,6 +128,7 @@ def givendate(date):
 ###When given the start and the end date, calculate the TMIN, TAVG, and TMAX for dates between the start and end date inclusive.
 @app.route('/api/v1.0/<start_date>/<end_date>/')
 def dates(start_date, end_date):
+    session = Session(engine)
     """Return the avg, max, min, temp over a specific time period"""
     dates_query = session.query(Measurement.date, func.avg(Measurement.tobs), func.max(Measurement.tobs), func.min(Measurement.tobs)).\
         filter(Measurement.date >= start_date, Measurement.date <= end_date).\
@@ -136,16 +137,18 @@ def dates(start_date, end_date):
 
 
     ##create dictionary and change jsonify
-    dates = []                       
+    date = []                       
     for result in dates_query:
-        date_dict = {}
-        date_dict["Date"] = dates_query[0]
-        date_dict["Low Temp"] = dates_query[1]
-        date_dict["Avg Temp"] = dates_query[2]
-        date_dict["High Temp"] = dates_query[3]
-        dates.append(date_dict)
+        dates_dict = {}
+        dates_dict["Date"] = dates_query[0]
+        dates_dict["Low Temp"] = dates_query[1]
+        dates_dict["Avg Temp"] = dates_query[2]
+        dates_dict["High Temp"] = dates_query[3]
+        date.append(dates_dict)
     return jsonify(dates)
 
 
 if __name__ == '__main__':
     app.run(debug=True)
+
+    ##http://localhost:52330/sqlalchemy-challenge/app.py
